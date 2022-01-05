@@ -1,6 +1,5 @@
 defmodule GenReport do
-
-  def build do
+  def build(filename) do
     # TO DO
   end
 end
