@@ -45,13 +45,34 @@ defmodule GenReport do
     %{"all_hours" => all_hours, "hours_per_month" => Enum.into(hours_per_month, %{})}
   end
 
-  defp sum_values([name, hours, _day, _month, _year], %{
+  defp sum_values([name, hours, _day, month, _year], %{
          "all_hours" => all_hours,
          "hours_per_month" => hours_per_month
        }) do
     all_hours = Map.put(all_hours, name, all_hours[name] + hours)
-    # hours_per_month = Enum.map(hours_per_month, fn x -> Map.put(x, name, x[name] + hours) end)
 
-    %{"all_hours" => all_hours, "hours_per_month" => hours_per_month}
+    # hours_per_month =
+    #   Enum.map(hours_per_month, fn {names, months} ->
+    #     {names,
+    #      Map.put(
+    #        months,
+    #        month,
+    #        Enum.find([name, hours, month], fn x ->
+    #          if x == names do
+    #            hours
+    #          end
+    #        end)
+    #      )}
+    #   end)
+
+    hours_per_month = sum_per_month(name, hours, month, hours_per_month)
+
+    %{"all_hours" => all_hours, "hours_per_month" => Enum.into(hours_per_month, %{})}
+  end
+
+  defp sum_per_month(name, hours, month, hours_per_month) do
+    months = hours_per_month[name]
+    months_updated = Map.put(months, month, months[month] + hours)
+    Map.put(hours_per_month, name, months_updated)
   end
 end
