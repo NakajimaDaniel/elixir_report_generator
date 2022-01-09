@@ -48,6 +48,46 @@ defmodule GenReport do
     |> Enum.reduce(report_acc(), fn line, report -> sum_values(line, report) end)
   end
 
+  def build_from_many(filenames) do
+    filenames
+    |> Task.async_stream(fn filename -> build(filename) end)
+    |> Enum.reduce(report_acc(), fn {:ok, result}, acc -> sum_reports(acc, result) end)
+  end
+
+  defp sum_reports(
+         %{
+           "all_hours" => all_hours1,
+           "hours_per_month" => hours_per_month1,
+           "hours_per_year" => hours_per_year1
+         },
+         %{
+           "all_hours" => all_hours2,
+           "hours_per_month" => hours_per_month2,
+           "hours_per_year" => hours_per_year2
+         }
+       ) do
+    all_hours = merge_maps(all_hours1, all_hours2)
+    hours_per_month = merge_nested_map(hours_per_month1, hours_per_month2)
+    hours_per_year = merge_nested_map(hours_per_year1, hours_per_year2)
+
+    %{
+      "all_hours" => all_hours,
+      "hours_per_month" => hours_per_month,
+      "hours_per_year" => hours_per_year
+    }
+  end
+
+  defp merge_maps(map1, map2) do
+    Map.merge(map1, map2, fn _key, value1, value2 -> value1 + value2 end)
+  end
+
+  defp merge_nested_map(map1, map2) do
+    map1
+    |> Map.merge(map2, fn _k, value1, value2 ->
+      value1 |> Map.merge(value2, fn _k, value3, value4 -> value3 + value4 end)
+    end)
+  end
+
   defp report_acc do
     all_hours = Enum.into(@all_names, %{}, fn x -> {x, 0} end)
     all_months = Enum.into(@available_months, %{}, fn x -> {x, 0} end)
@@ -63,11 +103,14 @@ defmodule GenReport do
     }
   end
 
-  defp sum_values([name, hours, _day, month, year], %{
-         "all_hours" => all_hours,
-         "hours_per_month" => hours_per_month,
-         "hours_per_year" => hours_per_year
-       }) do
+  defp sum_values(
+         [name, hours, _day, month, year],
+         %{
+           "all_hours" => all_hours,
+           "hours_per_month" => hours_per_month,
+           "hours_per_year" => hours_per_year
+         }
+       ) do
     all_hours = Map.put(all_hours, name, all_hours[name] + hours)
 
     hours_per_month = sum_per_month(name, hours, month, hours_per_month)
